@@ -5,6 +5,13 @@ export let viewBox = { x: 100, y: 10, w: 1120, h: 920 };
 
 export const applyViewBox = () => svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
 
+// Pixels covered by the floating sidebar (0 when collapsed / on mobile)
+const sidebarPadPx = () => {
+  const side = $('side');
+  if (!side || window.innerWidth <= 860 || side.classList.contains('min')) return 0;
+  return side.offsetWidth + 28;
+};
+
 export const fitViewport = () => {
   const rect = svg.getBoundingClientRect();
   const aspect = rect.width / (rect.height || 1);
@@ -14,7 +21,9 @@ export const fitViewport = () => {
     viewBox.w = 1120;
     viewBox.h = 1120 / aspect;
   }
-  viewBox.x = 650 - viewBox.w / 2;
+  // Center the plan in the free area right of the sidebar
+  const freeCxPx = (rect.width + sidebarPadPx()) / 2;
+  viewBox.x = 650 - freeCxPx * (viewBox.w / rect.width);
   viewBox.y = 470 - viewBox.h / 2;
   applyViewBox();
 };

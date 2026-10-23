@@ -12,6 +12,8 @@ function refreshUI() {
   $('vt').textContent = formatPointName(state.destPoint);
   $('cf').classList.toggle('on', state.activeSelectMode === 's');
   $('ct').classList.toggle('on', state.activeSelectMode === 'd');
+  $('cf').classList.toggle('set', !!state.startPoint);
+  $('ct').classList.toggle('set', !!state.destPoint);
 
   const isMultiFloor = state.startPoint && state.destPoint && !state.destPoint.nearest && state.startPoint.f !== state.destPoint.f;
   $('cn').style.display = isMultiFloor ? 'flex' : 'none';
@@ -137,6 +139,7 @@ function calculateRoute() {
 
     const meters = Math.round(routeLegs.cost * 0.15);
     const timeMinutes = Math.max(1, Math.round(meters / 70));
+    $('route-dist').textContent = meters + ' m · ~' + timeMinutes + ' min';
     const startNode = getNodeByRef(state.startPoint);
     const destNode = getNodeByRef(targetDest);
 
@@ -206,6 +209,20 @@ function initializeApp() {
     renderFloor(state.currentFloor, onMapNodeClick, onMapConnectorClick);
     refreshUI();
   });
+
+  // Endpoint clear buttons
+  const clearEndpoint = which => {
+    if (which === 's') state.startPoint = null;
+    else state.destPoint = null;
+    state.washroomPickerMode = null;
+    $('wc').innerHTML = '';
+    resetRoute();
+    setActiveSelectionMode(which);
+    renderFloor(state.currentFloor, onMapNodeClick, onMapConnectorClick);
+    refreshUI();
+  };
+  $('cf-x').addEventListener('click', e => { e.stopPropagation(); clearEndpoint('s'); });
+  $('ct-x').addEventListener('click', e => { e.stopPropagation(); clearEndpoint('d'); });
 
   $('sw').addEventListener('click', () => {
     if (state.destPoint && state.destPoint.nearest) {
@@ -331,9 +348,9 @@ function initializeApp() {
 
   // Sidebar toggle
   $('col').addEventListener('click', () => {
-    const isHidden = $('sb').style.display === 'none';
-    $('sb').style.display = isHidden ? 'block' : 'none';
-    $('col').textContent = isHidden ? '<' : '>';
+    const min = $('side').classList.toggle('min');
+    $('col').textContent = min ? '>' : '<';
+    $('col').setAttribute('aria-expanded', String(!min));
   });
 
   // Label toggle
@@ -386,17 +403,19 @@ function initializeApp() {
     }
   });
 
-  // Register PWA Service Worker
-  if ('serviceWorker' in navigator) {
+  // Register PWA Service Worker (skipped on localhost so dev never serves stale modules)
+  if ('serviceWorker' in navigator && !['localhost', '127.0.0.1'].includes(location.hostname)) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
 
   // Initial Floor Render & Deep Link Restore
+  // Capture query first — refreshUI()/syncHistoryUrl() strips params on load
+  const savedQuery = location.search;
   renderFloor(0, onMapNodeClick, onMapConnectorClick);
   fitViewport();
   setActiveSelectionMode('s');
 
-  const urlParams = new URLSearchParams(location.search);
+  const urlParams = new URLSearchParams(savedQuery);
   const startParam = deserializeRef(urlParams.get('from'));
   const destParam = deserializeRef(urlParams.get('to'));
 
